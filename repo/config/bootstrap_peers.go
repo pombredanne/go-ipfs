@@ -2,51 +2,30 @@ package config
 
 import (
 	"errors"
-	"strings"
 
-	ma "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multiaddr"
-	mh "github.com/jbenet/go-ipfs/Godeps/_workspace/src/github.com/jbenet/go-multihash"
+	iaddr "github.com/jbenet/go-ipfs/util/ipfsaddr"
 )
 
 // BootstrapPeer is a peer used to bootstrap the network.
-type BootstrapPeer struct {
-	Address string
-	PeerID  string // until multiaddr supports ipfs, use another field.
+type BootstrapPeer iaddr.IPFSAddr
+
+// ErrInvalidPeerAddr signals an address is not a valid peer address.
+var ErrInvalidPeerAddr = errors.New("invalid peer address")
+
+func (c *Config) BootstrapPeers() ([]BootstrapPeer, error) {
+	return ParseBootstrapPeers(c.Bootstrap)
 }
 
-func (bp *BootstrapPeer) String() string {
-	return bp.Address + "/" + bp.PeerID
+func (c *Config) SetBootstrapPeers(bps []BootstrapPeer) {
+	c.Bootstrap = BootstrapPeerStrings(bps)
 }
 
 func ParseBootstrapPeer(addr string) (BootstrapPeer, error) {
-	// to be replaced with just multiaddr parsing, once ptp is a multiaddr protocol
-	idx := strings.LastIndex(addr, "/")
-	if idx == -1 {
-		return BootstrapPeer{}, errors.New("invalid address")
-	}
-	addrS := addr[:idx]
-	peeridS := addr[idx+1:]
-
-	// make sure addrS parses as a multiaddr.
-	if len(addrS) > 0 {
-		maddr, err := ma.NewMultiaddr(addrS)
-		if err != nil {
-			return BootstrapPeer{}, err
-		}
-
-		addrS = maddr.String()
-	}
-
-	// make sure idS parses as a peer.ID
-	_, err := mh.FromB58String(peeridS)
+	ia, err := iaddr.ParseString(addr)
 	if err != nil {
-		return BootstrapPeer{}, err
+		return nil, err
 	}
-
-	return BootstrapPeer{
-		Address: addrS,
-		PeerID:  peeridS,
-	}, nil
+	return BootstrapPeer(ia), err
 }
 
 func ParseBootstrapPeers(addrs []string) ([]BootstrapPeer, error) {
@@ -59,4 +38,12 @@ func ParseBootstrapPeers(addrs []string) ([]BootstrapPeer, error) {
 		}
 	}
 	return peers, nil
+}
+
+func BootstrapPeerStrings(bps []BootstrapPeer) []string {
+	bpss := make([]string, len(bps))
+	for i, p := range bps {
+		bpss[i] = p.String()
+	}
+	return bpss
 }

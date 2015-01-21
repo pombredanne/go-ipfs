@@ -211,7 +211,7 @@ func initConfig(nBitsForKeypair int) (*config.Config, error) {
 			API: "/ip4/127.0.0.1/tcp/5001",
 		},
 
-		Bootstrap: bootstrapPeers,
+		Bootstrap: config.BootstrapPeerStrings(bootstrapPeers),
 		Datastore: *ds,
 		Logs:      *logConfig,
 		Identity:  identity,
