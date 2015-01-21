@@ -7,6 +7,7 @@ import (
 	"path"
 
 	context "github.com/jbenet/go-ipfs/Godeps/_workspace/src/code.google.com/p/go.net/context"
+	assets "github.com/jbenet/go-ipfs/assets"
 	cmds "github.com/jbenet/go-ipfs/commands"
 	core "github.com/jbenet/go-ipfs/core"
 	corecmds "github.com/jbenet/go-ipfs/core/commands"
@@ -17,6 +18,7 @@ import (
 	repo "github.com/jbenet/go-ipfs/repo"
 	config "github.com/jbenet/go-ipfs/repo/config"
 	fsrepo "github.com/jbenet/go-ipfs/repo/fsrepo"
+	uio "github.com/jbenet/go-ipfs/unixfs/io"
 	u "github.com/jbenet/go-ipfs/util"
 	debugerror "github.com/jbenet/go-ipfs/util/debugerror"
 )
@@ -106,7 +108,13 @@ func doInit(repoRoot string, force bool, nBitsForKeypair int) (interface{}, erro
 	if err := repo.ConfigureEventLogger(conf.Logs); err != nil {
 		return nil, err
 	}
+
 	err = addTheWelcomeFile(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	err = addDefaultAssets(repoRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +149,71 @@ func addTheWelcomeFile(repoRoot string) error {
 		return fmt.Errorf("failed to write test file: %s", err)
 	}
 	fmt.Printf("\nto get started, enter: ipfs cat %s\n", k)
+	return nil
+}
+
+func addDefaultAssets(repoRoot string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	r := fsrepo.At(repoRoot)
+	if err := r.Open(); err != nil { // NB: repo is owned by the node
+		return err
+	}
+	nd, err := core.NewIPFSNode(ctx, core.Offline(r))
+	if err != nil {
+		return err
+	}
+	defer nd.Close()
+
+	dirb := uio.NewDirectory(nd.DAG)
+
+	contact := bytes.NewBufferString(assets.Init_doc_contact)
+	contact_key, err := coreunix.Add(nd, contact)
+	if err != nil {
+		return err
+	}
+	err = dirb.AddChild("contact", contact_key)
+	if err != nil {
+		return err
+	}
+
+	help := bytes.NewBufferString(assets.Init_doc_help)
+	help_key, err := coreunix.Add(nd, help)
+	if err != nil {
+		return err
+	}
+	err = dirb.AddChild("help", help_key)
+	if err != nil {
+		return err
+	}
+
+	readme := bytes.NewBufferString(assets.Init_doc_readme)
+	readme_key, err := coreunix.Add(nd, readme)
+	if err != nil {
+		return err
+	}
+	err = dirb.AddChild("readme", readme_key)
+	if err != nil {
+		return err
+	}
+
+	secnotes := bytes.NewBufferString(assets.Init_doc_security_notes)
+	secnotes_key, err := coreunix.Add(nd, secnotes)
+	if err != nil {
+		return err
+	}
+	err = dirb.AddChild("security-notes", secnotes_key)
+	if err != nil {
+		return err
+	}
+
+	dir := dirb.GetNode()
+	dkey, err := nd.DAG.Add(dir)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("More documentation in %s\n", dkey)
 	return nil
 }
 
