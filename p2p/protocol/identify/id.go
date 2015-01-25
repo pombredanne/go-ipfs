@@ -79,7 +79,7 @@ func (ids *IDService) IdentifyConn(c inet.Conn) {
 
 		// ok give the response to our handler.
 		if err := protocol.WriteHeader(s, ID); err != nil {
-			log.Error("error writing stream header for %s", ID)
+			log.Debugf("error writing stream header for %s", ID)
 			log.Event(context.TODO(), "IdentifyOpenFailed", c.RemotePeer())
 		}
 		ids.ResponseHandler(s)
@@ -118,7 +118,7 @@ func (ids *IDService) ResponseHandler(s inet.Stream) {
 	r := ggio.NewDelimitedReader(s, 2048)
 	mes := pb.Identify{}
 	if err := r.ReadMsg(&mes); err != nil {
-		log.Errorf("%s error receiving message from %s %s %s", ID,
+		log.Debugf("%s error receiving message from %s %s %s", ID,
 			c.RemotePeer(), c.RemoteMultiaddr(), err)
 		return
 	}
@@ -144,7 +144,7 @@ func (ids *IDService) populateMessage(mes *pb.Identify, c inet.Conn) {
 	// set listen addrs
 	laddrs, err := ids.Host.Network().InterfaceListenAddresses()
 	if err != nil {
-		log.Error(err)
+		log.Warning(err)
 	} else {
 		mes.ListenAddrs = make([][]byte, len(laddrs))
 		for i, addr := range laddrs {
@@ -173,7 +173,7 @@ func (ids *IDService) consumeMessage(mes *pb.Identify, c inet.Conn) {
 	for _, addr := range laddrs {
 		maddr, err := ma.NewMultiaddrBytes(addr)
 		if err != nil {
-			log.Errorf("%s failed to parse multiaddr from %s %s", ID,
+			log.Debugf("%s failed to parse multiaddr from %s %s", ID,
 				p, c.RemoteMultiaddr())
 			continue
 		}
